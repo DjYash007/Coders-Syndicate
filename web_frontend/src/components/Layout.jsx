@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithGoogle } from "../services/auth";
+import { getApiUrl } from "../config/api";
 import "./Layout.css";
 // import Logo from "../assets/logo.png"; // uncomment when you add your logo
 
@@ -15,7 +16,7 @@ export default function Layout() {
       const user = await loginWithGoogle();
       const token = await user.getIdToken();
 
-      await fetch("http://localhost:5000/api/auth", {
+      await fetch(getApiUrl("/api/auth"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -44,11 +45,6 @@ export default function Layout() {
       {/* Centered Login Card */}
       <div className="auth-card-wrapper">
         <div className="auth-card">
-
-          {/* Uncomment once logo is added back */}
-          {/* <div className="logo-container">
-            <img src={Logo} alt="Coders Syndicate" className="logo-image" />
-          </div> */}
 
           <h1 className="auth-title">Welcome to Coders Syndicate</h1>
           <p className="auth-subtitle">Sign in with Google to join the arena</p>

@@ -21,7 +21,6 @@ export const navLinks = [
     name: "Leaderboard", 
     link: "/leaderboard" 
   },
-  { name: "Leaderboard", link: "/leaderboard" },
 ];
 
 // ... rest of your file (words array) stays the exact same

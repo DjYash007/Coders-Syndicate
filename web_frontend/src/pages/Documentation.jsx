@@ -2,6 +2,7 @@ import { useState } from "react";
 import Navbar from "../components/NavBar";
 import ReactMarkdown from "react-markdown";
 import axios from "axios";
+import { getApiUrl } from "../config/api";
 const Documentation = () => {
   const [topic, setTopic] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
@@ -17,7 +18,7 @@ const Documentation = () => {
     setIsLoading(true);
 
    try {
-    const res = await axios.post("http://localhost:5000/api/roadmap", {
+    const res = await axios.post(getApiUrl("/api/roadmap"), {
       topic: topic,
     });
 
@@ -38,7 +39,7 @@ const Documentation = () => {
   });
 
   try {
-    const res = await axios.post("http://localhost:5000/api/content", {
+    const res = await axios.post(getApiUrl("/api/content"), {
       title: item.title,
       topic: topic,
     });

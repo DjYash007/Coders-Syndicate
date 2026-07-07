@@ -1,11 +1,12 @@
 import { loginWithGoogle } from "../services/auth";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const Login = () => {
   const handleLogin = async () => {
     const user = await loginWithGoogle();
     const token = await user.getIdToken();
 
-    await fetch("http://localhost:5000/api/auth", {
+    await fetch(`${API_URL}/api/auth`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
