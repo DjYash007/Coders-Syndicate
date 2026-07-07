@@ -84,7 +84,7 @@ useEffect(() => {
       const data = await res.json();
       console.log("API FRIENDS RESPONSE:", data);
 
-     setFriends(data.friends || []);
+     setFriends(Array.isArray(data) ? data : data.friends || []);
     } catch (err) {
       console.error("Error fetching friends:", err);
     }

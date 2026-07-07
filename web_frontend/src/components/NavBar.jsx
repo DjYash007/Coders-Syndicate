@@ -6,6 +6,8 @@ import { AuthContext } from "../context/AuthContext";
 import { logout } from "../services/auth";
 import { HiOutlineUserAdd } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
+import { getApiUrl } from "../config/api";
+import { io } from "socket.io-client";
 
 const NavBar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -29,6 +31,7 @@ const NavBar = () => {
   const [friendSearchResult, setFriendSearchResult] = useState(null);
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [friends, setFriends] = useState([]);
+  const [incomingBattleInvite, setIncomingBattleInvite] = useState(null);
 
   // Refs
   const chatScrollRef = useRef(null);
@@ -97,7 +100,7 @@ const NavBar = () => {
 
       try {
         const token = await user.getIdToken();
-        const res = await fetch("http://localhost:5000/api/auth", {
+        const res = await fetch(getApiUrl("/api/auth"), {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -115,10 +118,10 @@ const NavBar = () => {
       if (!dbUser?.uid) return;
 
       try {
-        const res = await fetch(`http://localhost:5000/api/friends/list/${dbUser.uid}`);
+        const res = await fetch(getApiUrl(`/api/friends/list/${dbUser.uid}`));
         const data = await res.json();
         if (res.ok) {
-          setFriends(data.friends || []);;
+          setFriends(Array.isArray(data) ? data : data.friends || []);
         }
       } catch (err) {
         console.error("Failed to fetch friends:", err);
@@ -137,7 +140,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
       if (!dbUser?.uid) return;
 
       try {
-        const res = await fetch(`http://localhost:5000/api/friends/requests/${dbUser.uid}`);
+        const res = await fetch(getApiUrl(`/api/friends/requests/${dbUser.uid}`));
         const data = await res.json();
         if (res.ok) {
           setIncomingRequests(data);
@@ -149,6 +152,33 @@ console.log("IS ARRAY:", Array.isArray(friends));
 
     fetchRequests();
   }, [dbUser]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const socket = io(getApiUrl(""));
+    socket.emit("register", user.uid);
+
+    socket.on("friend_request_received", (request) => {
+      setIncomingRequests((prev) => {
+        if (prev.some((item) => item.id === request.id || item.uid === request.uid)) {
+          return prev;
+        }
+        return [request, ...prev];
+      });
+    });
+
+    socket.on("new_invite", (invite) => {
+      setIncomingBattleInvite({
+        matchId: invite.matchId,
+        roomId: invite.roomId,
+        challengerName: invite.sender?.name || "A friend",
+        challengerPhoto: invite.sender?.picture || "",
+      });
+    });
+
+    return () => socket.disconnect();
+  }, [user?.uid]);
 
   // Scroll effect
   useEffect(() => {
@@ -175,7 +205,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
     const formData = new FormData();
     formData.append("audio", audioBlob, "recording.webm");
 
-    const res = await fetch("http://localhost:5000/api/voice/ask", {
+    const res = await fetch(getApiUrl("/api/voice/ask"), {
       method: "POST",
       body: formData,
     });
@@ -206,7 +236,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
     setIsAiTyping(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/voice/text", {
+      const res = await fetch(getApiUrl("/api/voice/text"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage }),
@@ -315,7 +345,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
 
     try {
       const res = await fetch(
-        `http://localhost:5000/api/friends/search?q=${encodeURIComponent(friendSearchQuery)}&currentUid=${dbUser.uid}`
+        getApiUrl(`/api/friends/search?q=${encodeURIComponent(friendSearchQuery)}&currentUid=${dbUser.uid}`)
       );
 
       const data = await res.json();
@@ -326,8 +356,8 @@ console.log("IS ARRAY:", Array.isArray(friends));
           id: first._id,
           uid: first.uid,
           name: first.name,
-          rank: "Diamond Tier",
-          league: "Champion's League",
+          rank: first.tier,
+          league: first.league,
           photoURL: first.picture,
         });
       } else {
@@ -345,7 +375,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
     if (!dbUser?.uid || !friendSearchResult?.uid) return;
 
     try {
-      const res = await fetch("http://localhost:5000/api/friends/request", {
+      const res = await fetch(getApiUrl("/api/friends/request"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -372,7 +402,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
 
   const handleAcceptRequest = async (requestId) => {
     try {
-      const res = await fetch("http://localhost:5000/api/friends/accept", {
+      const res = await fetch(getApiUrl("/api/friends/accept"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId }),
@@ -386,7 +416,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
 
       setIncomingRequests((prev) => prev.filter((r) => r.id !== requestId));
 
-      const friendsRes = await fetch(`http://localhost:5000/api/friends/list/${dbUser.uid}`);
+      const friendsRes = await fetch(getApiUrl(`/api/friends/list/${dbUser.uid}`));
       const friendsData = await friendsRes.json();
       if (friendsRes.ok) {
         setFriends(friendsData);
@@ -399,7 +429,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
 
   const handleDeclineRequest = async (requestId) => {
     try {
-      const res = await fetch("http://localhost:5000/api/friends/decline", {
+      const res = await fetch(getApiUrl("/api/friends/decline"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId }),
@@ -420,7 +450,7 @@ console.log("IS ARRAY:", Array.isArray(friends));
 
   const handleAcceptMatchInvite = async (matchId) => {
     try {
-      const res = await fetch("http://localhost:5000/api/match/accept-invite", {
+      const res = await fetch(getApiUrl("/api/match/accept-invite"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -444,29 +474,15 @@ console.log("IS ARRAY:", Array.isArray(friends));
 
   const displayUser = dbUser
     ? {
-        name: dbUser.name,
-        email: dbUser.email,
-        photoURL: dbUser.picture,
-        rank: "Diamond Tier",
-        league: "Champion's League",
-        currentRank: "#1,024",
-        xpEarned: "24,500",
-        docsRead: 142,
-        battlesWon: 87,
-        battlesLost: 12,
-      }
-    : user
-    ? {
-        name: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        rank: "—",
-        league: "—",
-        currentRank: "—",
-        xpEarned: "—",
-        docsRead: 0,
-        battlesWon: 0,
-        battlesLost: 0,
+        name: dbUser.name || "Player",
+        email: dbUser.email || "",
+        photoURL: dbUser.picture || "",
+        rank: dbUser.tier || "Bronze",
+        league: dbUser.level ? `Level ${dbUser.level}` : "Novice",
+        currentRank: dbUser.level ? `#${dbUser.level}` : "—",
+        xpEarned: dbUser.xp ?? 0,
+        battlesWon: dbUser.wins ?? 0,
+        battlesLost: dbUser.losses ?? 0,
       }
     : null;
 
@@ -773,8 +789,8 @@ console.log("IS ARRAY:", Array.isArray(friends));
       {/* PROFILE MODAL */}
       {isProfileModalOpen && displayUser && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8 bg-black/60 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full md:w-[85vw] max-w-[1400px] bg-white/95 backdrop-blur-2xl rounded-[2.5rem] p-8 md:p-14 shadow-[0_20px_60px_rgba(0,0,0,0.4)] border border-white/50 flex flex-col animate-modal-pop">
-            <div className="absolute top-8 right-8 flex items-center gap-6 z-10">
+          <div className="relative w-full md:w-[80vw] max-w-[980px] bg-white/95 backdrop-blur-2xl rounded-[2rem] p-6 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.25)] border border-white/50 flex flex-col animate-modal-pop">
+            <div className="absolute top-6 right-6 flex items-center gap-4 z-10">
               <button
                 className="text-xs md:text-sm font-bold text-red-500 hover:text-red-700 uppercase tracking-widest transition-colors"
                 onClick={handleLogout}
@@ -789,26 +805,26 @@ console.log("IS ARRAY:", Array.isArray(friends));
               </button>
             </div>
 
-            <div className="flex flex-col lg:flex-row justify-between items-start w-full mt-10 md:mt-0 mb-12 gap-8">
+            <div className="flex flex-col lg:flex-row justify-between items-start w-full mt-8 md:mt-0 mb-10 gap-6">
               <div className="flex flex-col items-start shrink-0 animate-stagger-1">
-                <div className="size-28 md:size-40 rounded-full bg-black shadow-2xl flex justify-center items-center overflow-hidden border-4 border-white mb-6">
+                <div className="size-24 md:size-32 rounded-full bg-black shadow-2xl flex justify-center items-center overflow-hidden border-4 border-white mb-5">
                   {displayUser.photoURL ? (
                     <img src={displayUser.photoURL} alt={displayUser.name} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white font-black text-6xl">{displayUser.name?.charAt(0).toUpperCase()}</span>
                   )}
                 </div>
-                <h3 className="text-3xl md:text-6xl font-black text-gray-900 tracking-tight text-center lg:text-left">
+                <h3 className="text-2xl md:text-4xl font-black text-gray-900 tracking-tight text-center lg:text-left">
                   {displayUser.name}
                 </h3>
-                <p className="text-sm md:text-xl font-bold text-gray-500 mt-1 text-center lg:text-left">
+                <p className="text-sm md:text-lg font-bold text-gray-500 mt-1 text-center lg:text-left">
                   {displayUser.email}
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full pt-2 lg:pt-16 animate-stagger-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full pt-2 lg:pt-12 animate-stagger-2">
                 {/* Tier, Battles, XP cards - kept as in original */}
-                <div className="flex items-center gap-4 bg-gray-50/80 px-4 py-4 md:px-5 md:py-5 rounded-2xl md:rounded-[1.5rem] border border-gray-200 shadow-sm h-full hover:-translate-y-1 transition-transform">
+                <div className="flex items-center gap-3 bg-gray-50/80 px-3 py-3 rounded-2xl border border-gray-200 shadow-sm h-full hover:-translate-y-1 transition-transform">
                   <div className="size-10 md:size-14 flex items-center justify-center bg-[#1a1a1a] rounded-full text-lg md:text-xl shadow-inner shrink-0">🏆</div>
                   <div className="text-left">
                     <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Tier</p>
@@ -837,8 +853,8 @@ console.log("IS ARRAY:", Array.isArray(friends));
             </div>
 
             {/* XP, Wins, Losses big cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-auto animate-stagger-3">
-              <div className="bg-[#1a1a1a] rounded-[2rem] p-8 md:p-10 flex flex-col justify-center items-center text-center shadow-2xl hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-300 border border-neutral-800">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mt-auto animate-stagger-3">
+              <div className="bg-[#1a1a1a] rounded-[1.75rem] p-6 md:p-8 flex flex-col justify-center items-center text-center shadow-2xl hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-300 border border-neutral-800">
                 <span className="text-4xl md:text-5xl mb-4 opacity-90">⚡</span>
                 <span className="text-6xl md:text-7xl font-black text-white">{displayUser.xpEarned}</span>
                 <span className="text-xs md:text-sm font-bold text-orange-400 uppercase tracking-widest mt-4">Total XP</span>
@@ -911,6 +927,42 @@ console.log("IS ARRAY:", Array.isArray(friends));
         }}
         onDecline={handleDeclineRequest}
       />
+
+      {incomingBattleInvite && (
+        <div className="fixed bottom-6 left-6 z-[500] w-[360px] max-w-[90vw] rounded-3xl border border-cyan-200 bg-white/95 p-5 shadow-[0_20px_40px_rgba(34,211,238,0.15)] backdrop-blur-xl">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-cyan-200 bg-cyan-50">
+              {incomingBattleInvite.challengerPhoto ? (
+                <img src={incomingBattleInvite.challengerPhoto} alt={incomingBattleInvite.challengerName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="font-black text-cyan-600">⚔️</span>
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-600">Battle Invite</p>
+              <h4 className="text-lg font-black text-gray-900">{incomingBattleInvite.challengerName}</h4>
+              <p className="mt-1 text-sm font-semibold text-gray-600">wants to challenge you to a coding battle.</p>
+            </div>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={() => {
+                handleAcceptMatchInvite(incomingBattleInvite.matchId);
+                setIncomingBattleInvite(null);
+              }}
+              className="flex-1 rounded-xl bg-cyan-600 px-3 py-2 text-sm font-black uppercase tracking-wider text-white transition hover:bg-cyan-500"
+            >
+              Accept
+            </button>
+            <button
+              onClick={() => setIncomingBattleInvite(null)}
+              className="flex-1 rounded-xl bg-gray-100 px-3 py-2 text-sm font-black uppercase tracking-wider text-gray-700 transition hover:bg-gray-200"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -151,10 +151,26 @@ const connectDB = require("./config/db");
 connectDB();
 
 // Firebase Admin Setup
-const serviceAccount = require("./serviceAccountKey.json");
+let firebaseServiceAccount;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    firebaseServiceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } catch (err) {
+    try {
+      const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, "base64").toString("utf8");
+      firebaseServiceAccount = JSON.parse(decoded);
+    } catch (parseErr) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT:", parseErr);
+      throw parseErr;
+    }
+  }
+} else {
+  firebaseServiceAccount = require("./serviceAccountKey.json");
+}
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert(firebaseServiceAccount),
 });
 
 // Middleware

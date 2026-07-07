@@ -2,6 +2,7 @@ import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/NavBar";
+import { getApiUrl } from "../config/api";
 
 const Leaderboard = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -22,8 +23,8 @@ const Leaderboard = () => {
       const loggedInUid = user.uid;
 
       const [leaderboardRes, currentUserRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/leaderboard"),
-        axios.get(`http://localhost:5000/api/leaderboard/user/${loggedInUid}`)
+        axios.get(getApiUrl("/api/leaderboard")),
+        axios.get(getApiUrl(`/api/leaderboard/user/${loggedInUid}`))
       ]);
 
       setTopPlayers(leaderboardRes.data);
