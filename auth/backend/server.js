@@ -132,10 +132,23 @@ async function crawl(input) {
     }
 }
 const app = express();
-const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,http://localhost:3000")
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,http://localhost:3000,https://coders-syndicate.vercel.app")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+console.log("Allowed CORS origins:", allowedOrigins);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`));
+    }
+  },
+  credentials: true,
+};
 
 const server = http.createServer(app); // wrap express with http server
  
@@ -174,7 +187,8 @@ admin.initializeApp({
 });
 
 // Middleware
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json());
 
 // Routes
