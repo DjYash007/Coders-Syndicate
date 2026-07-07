@@ -1,6 +1,19 @@
 const User = require("../models/user");
 const FriendRequest = require("../models/FriendRequest");
 
+const emitFriendRequest = (receiverUid, payload) => {
+  try {
+    const { io, onlineUsers } = require("../server");
+    const receiverSocket = onlineUsers[receiverUid];
+
+    if (receiverSocket) {
+      io.to(receiverSocket).emit("friend_request_received", payload);
+    }
+  } catch (err) {
+    console.error("Friend request socket emit failed:", err.message);
+  }
+};
+
 exports.searchUsers = async (req, res) => {
   try {
     const { q, currentUid } = req.query;
@@ -72,6 +85,16 @@ exports.sendRequest = async (req, res) => {
       receiver: receiver._id,
     });
 
+    emitFriendRequest(receiver.uid, {
+      id: request._id.toString(),
+      senderId: sender._id.toString(),
+      uid: sender.uid,
+      name: sender.name,
+      photoURL: sender.picture,
+      league: "Champion's League",
+      rank: "Diamond Tier",
+    });
+
     res.json({ message: "Friend request sent", request });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -120,13 +143,32 @@ exports.acceptRequest = async (req, res) => {
     request.status = "accepted";
     await request.save();
 
-    await User.findByIdAndUpdate(request.sender, {
-      $addToSet: { friends: request.receiver },
-    });
+    const senderUser = await User.findById(request.sender).select("uid name picture");
+    const receiverUser = await User.findById(request.receiver).select("uid name picture");
 
-    await User.findByIdAndUpdate(request.receiver, {
-      $addToSet: { friends: request.sender },
-    });
+    if (senderUser) {
+      await User.findByIdAndUpdate(request.sender, {
+        $addToSet: {
+          friends: {
+            uid: receiverUser.uid,
+            name: receiverUser.name,
+            picture: receiverUser.picture,
+          },
+        },
+      });
+    }
+
+    if (receiverUser) {
+      await User.findByIdAndUpdate(request.receiver, {
+        $addToSet: {
+          friends: {
+            uid: senderUser.uid,
+            name: senderUser.name,
+            picture: senderUser.picture,
+          },
+        },
+      });
+    }
 
     res.json({ message: "Friend request accepted" });
   } catch (err) {
@@ -134,7 +176,6 @@ exports.acceptRequest = async (req, res) => {
   }
 };
 
-//FIXED BY YASH
 exports.declineRequest = async (req, res) => {
   try {
     const { requestId } = req.body;
@@ -153,27 +194,39 @@ exports.declineRequest = async (req, res) => {
   }
 };
 
+
+//FIXED BY YASH
 exports.getFriendsList = async (req, res) => {
   try {
     const { uid } = req.params;
 
-    const user = await User.findOne({ uid }).populate("friends");
+    const user = await User.findOne({ uid });
 
     if (!user) {
-      return res.status(404).json({ friends: [] });
+      return res.json([]); // ✅ always array
     }
 
-    const friends = (user.friends || []).map((f) => ({
-      id: f._id,
-      uid: f.uid,
-      name: f.name,
-      photoURL: f.picture,
+    const friendUids = user.friends.map((friend) => friend.uid).filter(Boolean);
+
+    if (friendUids.length === 0) {
+      return res.json([]);
+    }
+
+    const friends = await User.find({
+      uid: { $in: friendUids },
+    });
+
+    const formatted = friends.map((friend) => ({
+      uid: friend.uid,
+      name: friend.name,
+      photoURL: friend.picture || friend.photoURL || "",
+      status: "Online",
     }));
 
-    res.json({ friends });
+    return res.json(formatted); // ✅ always array
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json([]); // ✅ still array
   }
 };

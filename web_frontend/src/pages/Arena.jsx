@@ -84,7 +84,7 @@ useEffect(() => {
       const data = await res.json();
       console.log("API FRIENDS RESPONSE:", data);
 
-      setFriends(data || []);
+     setFriends(data.friends || []);
     } catch (err) {
       console.error("Error fetching friends:", err);
     }
@@ -166,33 +166,33 @@ useEffect(() => {
 }, [user]);
 
 
-useEffect(() => {
-  if (!user) return;
+//useEffect(() => {
+  //if (!user) return;
 
-  const fetchInvites = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/match/invites/${user.uid}`);
-      const data = await res.json();
+ // const fetchInvites = async () => {
+    //try {
+      //const res = await fetch(`${API_URL}/api/match/invites/${user.uid}`);
+      //const data = await res.json();
 
-      if (data.length > 0) {
-        console.log("Incoming invite:", data[0]);
+      //if (data.length > 0) {
+       // console.log("Incoming invite:", data[0]);
 
-        setIncomingBattleRequest({
-          matchId: data[0]._id,
-          challengerName: data[0].name,
-          challengerPhoto: data[0].photoURL,
-        });
-      }
-    } catch (err) {
-      console.error("Invite fetch error:", err);
-    }
-  };
+       // setIncomingBattleRequest({
+       //   matchId: data[0]._id,
+       //   challengerName: data[0].name,
+       //   challengerPhoto: data[0].photoURL,
+       // });
+     // }
+    //} catch (err) {
+    //  console.error("Invite fetch error:", err);
+   // }
+  //};
 
-  fetchInvites(); // initial
-  const interval = setInterval(fetchInvites, 3000); // every 3 sec
+ // fetchInvites(); // initial
+  //const interval = setInterval(fetchInvites, 3000); // every 3 sec
 
-  return () => clearInterval(interval);
-}, [user]);
+ // return () => clearInterval(interval);
+//}, [user]);
 
 //YASH ELEMENT OF ACCEPT AND DECLINE(P.S. THANKS PRASHANT FOR ANDLING THE BACKEND OF FRIENDS)
 const handleAcceptBattle = async () => {

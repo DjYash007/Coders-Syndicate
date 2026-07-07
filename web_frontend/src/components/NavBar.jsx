@@ -118,7 +118,7 @@ const NavBar = () => {
         const res = await fetch(`http://localhost:5000/api/friends/list/${dbUser.uid}`);
         const data = await res.json();
         if (res.ok) {
-          setFriends(data);
+          setFriends(data.friends || []);;
         }
       } catch (err) {
         console.error("Failed to fetch friends:", err);
@@ -127,6 +127,10 @@ const NavBar = () => {
 
     fetchFriends();
   }, [dbUser]);
+
+console.log("FRIENDS:", friends);
+console.log("TYPE:", typeof friends);
+console.log("IS ARRAY:", Array.isArray(friends));
 
   useEffect(() => {
     const fetchRequests = async () => {
