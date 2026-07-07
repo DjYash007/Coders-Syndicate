@@ -132,12 +132,16 @@ async function crawl(input) {
     }
 }
 const app = express();
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 const server = http.createServer(app); // wrap express with http server
  
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
   },
 });
@@ -154,7 +158,7 @@ admin.initializeApp({
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 // Routes
@@ -281,7 +285,7 @@ app.post("/api/content", async (req, res) => {
   }
 });
 // Start server
-const PORT = 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });

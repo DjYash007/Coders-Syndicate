@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-<Route path="/battle/:roomId" element={<Battle />} />
 import { useContext } from "react";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 
